@@ -1,5 +1,6 @@
 #![no_std]
 
+use byteorder::{ByteOrder, BigEndian};
 use embedded_hal::blocking::i2c;
 
 #[repr(u8)]
@@ -41,6 +42,8 @@ enum VBUSCT {
 const ADDRESS_MIN: u8 = 0b1000000;
 const ADDRESS_MAX: u8 = 0b1001111;
 
+const SHUNT_VOLTAGE_LSB_UV: f64 = 2.5; // 2.5 μV.
+
 pub struct INA226<I2C> {
     i2c: I2C,
     address: u8,
@@ -52,6 +55,23 @@ where
 {
     pub fn new(i2c: I2C, address: u8) -> INA226<I2C> {
         INA226 { i2c, address }
+    }
+
+    #[inline(always)]
+    pub fn shunt_voltage_raw(&mut self) -> Result<i16, E> {
+        self.read_i16(Register::ShuntVoltage)
+    }
+
+    #[inline(always)]
+    pub fn shunt_voltage_microvolts(&mut self) -> Result<f64, E> {
+        self.read_i16(Register::ShuntVoltage).map(|raw| (raw as f64) * SHUNT_VOLTAGE_LSB_UV)
+    }
+
+    fn read_i16(&mut self, register: Register) -> Result<i16, E> {
+        let mut buf: [u8; 2] = [0x00; 2];
+        self.i2c.write(self.address, &[register as u8])?;
+        self.i2c.read(self.address, &mut buf)?;
+        Ok(BigEndian::read_i16(&buf))
     }
 }
 
