@@ -58,6 +58,11 @@ where
     }
 
     #[inline(always)]
+    pub fn configuration_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Configuration)
+    }
+
+    #[inline(always)]
     pub fn shunt_voltage_raw(&mut self) -> Result<i16, E> {
         self.read_i16(Register::ShuntVoltage)
     }
@@ -73,13 +78,16 @@ where
         self.i2c.read(self.address, &mut buf)?;
         Ok(BigEndian::read_i16(&buf))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn read_u16(&mut self, register: Register) -> Result<u16, E> {
+        let mut buf: [u8; 2] = [0x00; 2];
+        self.i2c.write(self.address, &[register as u8])?;
+        self.i2c.read(self.address, &mut buf)?;
+        Ok(BigEndian::read_u16(&buf))
+    }
+
+    pub fn destroy(self) -> I2C {
+        self.i2c
     }
 }
+
