@@ -14,6 +14,21 @@ fn configuration_to_value_works() {
 }
 
 #[test]
+fn configuration_from_value_works() {
+    let config = Config::from_value(0b0100000100100111).expect("config to be parsed");
+
+    assert_eq!(
+        config,
+        Config {
+            avg: AVG::_1,
+            vbusct: VBUSCT::_1100us,
+            vshct: VSHCT::_1100us,
+            mode: MODE::ShuntBusVoltageContinuous,
+        }
+    );
+}
+
+#[test]
 fn read_configuration_raw_works() {
     let expectations = [
         I2cTransaction::write(0b1000000, vec![0x00]),

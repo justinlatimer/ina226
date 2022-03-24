@@ -17,7 +17,8 @@ enum Register {
     DieID = 0xFF,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum AVG {
     _1 = 0b000,
     _4 = 0b001,
@@ -29,7 +30,24 @@ pub enum AVG {
     _1024 = 0b111,
 }
 
-#[derive(Copy, Clone)]
+impl AVG {
+    fn parse(value: u8) -> Option<AVG> {
+        match value {
+            0b000 => Some(AVG::_1),
+            0b001 => Some(AVG::_4),
+            0b010 => Some(AVG::_16),
+            0b011 => Some(AVG::_64),
+            0b100 => Some(AVG::_128),
+            0b101 => Some(AVG::_256),
+            0b110 => Some(AVG::_512),
+            0b111 => Some(AVG::_1024),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum VBUSCT {
     _140us = 0b000,
     _204us = 0b001,
@@ -41,7 +59,24 @@ pub enum VBUSCT {
     _8244us = 0b111,
 }
 
-#[derive(Copy, Clone)]
+impl VBUSCT {
+    fn parse(value: u8) -> Option<VBUSCT> {
+        match value {
+            0b000 => Some(VBUSCT::_140us),
+            0b001 => Some(VBUSCT::_204us),
+            0b010 => Some(VBUSCT::_332us),
+            0b011 => Some(VBUSCT::_588us),
+            0b100 => Some(VBUSCT::_1100us),
+            0b101 => Some(VBUSCT::_2116us),
+            0b110 => Some(VBUSCT::_4156us),
+            0b111 => Some(VBUSCT::_8244us),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum VSHCT {
     _140us = 0b000,
     _204us = 0b001,
@@ -53,7 +88,24 @@ pub enum VSHCT {
     _8244us = 0b111,
 }
 
-#[derive(Copy, Clone)]
+impl VSHCT {
+    fn parse(value: u8) -> Option<VSHCT> {
+        match value {
+            0b000 => Some(VSHCT::_140us),
+            0b001 => Some(VSHCT::_204us),
+            0b010 => Some(VSHCT::_332us),
+            0b011 => Some(VSHCT::_588us),
+            0b100 => Some(VSHCT::_1100us),
+            0b101 => Some(VSHCT::_2116us),
+            0b110 => Some(VSHCT::_4156us),
+            0b111 => Some(VSHCT::_8244us),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
 pub enum MODE {
     PowerDown = 0b000,
     ShuntVoltageTriggered = 0b001,
@@ -65,6 +117,23 @@ pub enum MODE {
     ShuntBusVoltageContinuous = 0b111,
 }
 
+impl MODE {
+    fn parse(value: u8) -> Option<MODE> {
+        match value {
+            0b000 => Some(MODE::PowerDown),
+            0b001 => Some(MODE::ShuntVoltageTriggered),
+            0b010 => Some(MODE::BusVoltageTriggered),
+            0b011 => Some(MODE::ShuntBusVoltageTriggered),
+            0b100 => Some(MODE::PowerDown2),
+            0b101 => Some(MODE::ShuntVoltageContinuous),
+            0b110 => Some(MODE::BusVoltageContinuous),
+            0b111 => Some(MODE::ShuntBusVoltageContinuous),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Config {
     pub avg: AVG,
     pub vbusct: VBUSCT,
@@ -80,10 +149,18 @@ impl Config {
             | ((self.vshct as u16) << 3)
             | (self.mode as u16)
     }
+
+    pub fn from_value(value: u16) -> Option<Config> {
+        Some(Config {
+            avg: AVG::parse(((value >> 9) & 0b111) as u8)?,
+            vbusct: VBUSCT::parse(((value >> 6) & 0b111) as u8)?,
+            vshct: VSHCT::parse(((value >> 3) & 0b111) as u8)?,
+            mode: MODE::parse((value & 0b111) as u8)?,
+        })
+    }
 }
 
-const ADDRESS_MIN: u8 = 0b1000000;
-const ADDRESS_MAX: u8 = 0b1001111;
+pub const DEFAULT_ADDRESS: u8 = 0b1000000;
 
 const SHUNT_VOLTAGE_LSB_UV: f64 = 2.5; // 2.5 μV.
 const BUS_VOLTAGE_LSB_MV: f64 = 1.25; // 1.25 mV.
@@ -104,6 +181,12 @@ where
     #[inline(always)]
     pub fn configuration_raw(&mut self) -> Result<u16, E> {
         self.read_u16(Register::Configuration)
+    }
+
+    #[inline(always)]
+    pub fn configuration(&mut self) -> Result<Option<Config>, E> {
+        self.read_u16(Register::Configuration)
+            .map(|value| Config::from_value(value))
     }
 
     #[inline(always)]
