@@ -1,5 +1,6 @@
 #![no_std]
 
+use bitflags::bitflags;
 use byteorder::{BigEndian, ByteOrder};
 use embedded_hal::blocking::i2c;
 
@@ -160,6 +161,89 @@ impl Config {
     }
 }
 
+bitflags! {
+    pub struct MaskEnableFlags: u16 {
+        // Shunt Voltage Over-Voltage
+        // Bit 15
+        // Setting this bit high configures the Alert pin to be asserted if the shunt voltage measurement
+        // following a conversion exceeds the value programmed in the Alert Limit Register.
+        const SOL = 1 << 15;
+
+        // Shunt Voltage Under-Voltage
+        // Bit 14
+        // Setting this bit high configures the Alert pin to be asserted if the shunt voltage measurement
+        // following a conversion drops below the value programmed in the Alert Limit Register.
+        const SUL = 1 << 14;
+
+        // Bus Voltage Over-Voltage
+        // Bit 13
+        // Setting this bit high configures the Alert pin to be asserted if the bus voltage measurement
+        // following a conversion exceeds the value programmed in the Alert Limit Register.
+        const BOL = 1 << 13;
+
+        // Bus Voltage Under-Voltage
+        // Bit 12
+        // Setting this bit high configures the Alert pin to be asserted if the bus voltage measurement
+        // following a conversion drops below the value programmed in the Alert Limit Register.
+        const BUL = 1 << 12;
+
+        // Power Over-Limit
+        // Bit 11
+        // Setting this bit high configures the Alert pin to be asserted if the Power calculation made
+        // following a bus voltage measurement exceeds the value programmed in the Alert Limit Register.
+        const POL = 1 << 11;
+
+        // Conversion Ready
+        // Bit 10
+        // Setting this bit high configures the Alert pin to be asserted when the Conversion Ready Flag, Bit 3, is
+        // asserted indicating that the device is ready for the next conversion.
+        const CNVR = 1 << 10;
+
+        // Alert Function Flag
+        // Bit 4
+        // While only one Alert Function can be monitored at the Alert pin at a time, the Conversion Ready can also
+        // be enabled to assert the Alert pin. Reading the Alert Function Flag following an alert allows the user
+        // to determine if the Alert Function was the source of the Alert.
+        //
+        // When the Alert Latch Enable bit is set to Latch mode, the Alert Function Flag bit clears only when the
+        // Mask/Enable Register is read. When the Alert Latch Enable bit is set to Transparent mode, the Alert
+        // Function Flag bit is cleared following the next conversion that does not result in an Alert condition.
+        const AFF = 1 << 4;
+
+        // Conversion Ready Flag
+        // Bit 3
+        // Although the device can be read at any time, and the data from the last conversion is available, the
+        // Conversion Ready Flag bit is provided to help coordinate one-shot or triggered conversions. The
+        // Conversion Ready Flag bit is set after all conversions, averaging, and multiplications are complete.
+        // Conversion Ready Flag bit clears under the following conditions:
+        // 1.) Writing to the Configuration Register (except for Power-Down selection)
+        // 2.) Reading the Mask/Enable Register
+        const CVRF = 1 << 3;
+
+        // Math Overflow Flag
+        // Bit 2
+        // This bit is set to '1' if an arithmetic operation resulted in an overflow error. It indicates that
+        // current and power data may be invalid.
+        const OVF = 1 << 2;
+
+        // Alert Polarity bit; sets the Alert pin polarity.
+        // Bit 1
+        // 1 = Inverted (active-high open collector)
+        // 0 = Normal (active-low open collector) (default)
+        const APOL = 1 << 1;
+
+        // Alert Latch Enable; configures the latching feature of the Alert pin and Alert Flag bits.
+        // Bit 0
+        // 1 = Latch enabled
+        // 0 = Transparent (default)
+        // When the Alert Latch Enable bit is set to Transparent mode, the Alert pin and Flag bit
+        // resets to the idle states when the fault has been cleared. When the Alert Latch Enable
+        // bit is set to Latch mode, the Alert pin and Alert Flag bit remains active following a
+        // fault until the Mask/Enable Register has been read.
+        const LEN = 1 << 0;
+    }
+}
+
 pub const DEFAULT_ADDRESS: u8 = 0b1000000;
 
 const SHUNT_VOLTAGE_LSB_UV: f64 = 2.5; // 2.5 μV.
@@ -186,7 +270,7 @@ where
     #[inline(always)]
     pub fn configuration(&mut self) -> Result<Option<Config>, E> {
         self.read_u16(Register::Configuration)
-            .map(|value| Config::from_value(value))
+            .map(Config::from_value)
     }
 
     #[inline(always)]
@@ -222,6 +306,53 @@ where
     pub fn bus_voltage_millivolts(&mut self) -> Result<f64, E> {
         self.read_u16(Register::BusVoltage)
             .map(|raw| (raw as f64) * BUS_VOLTAGE_LSB_MV)
+    }
+
+    #[inline(always)]
+    pub fn power_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Power)
+    }
+
+    #[inline(always)]
+    pub fn current_raw(&mut self) -> Result<i16, E> {
+        self.read_i16(Register::Current)
+    }
+
+    #[inline(always)]
+    pub fn callibration(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Callibration)
+    }
+
+    #[inline(always)]
+    pub fn set_callibration(&mut self, value: u16) -> Result<(), E> {
+        self.i2c.write(
+            self.address,
+            &[
+                Register::Callibration as u8,
+                (value >> 8) as u8,
+                value as u8,
+            ],
+        )
+    }
+
+    #[inline(always)]
+    pub fn mask_enable(&mut self) -> Result<MaskEnableFlags, E> {
+        self.read_u16(Register::MaskEnable)
+            .map(MaskEnableFlags::from_bits_truncate)
+    }
+
+    #[inline(always)]
+    pub fn set_mask_enable(&mut self, flags: MaskEnableFlags) -> Result<(), E> {
+        let value = flags.bits();
+        self.i2c.write(
+            self.address,
+            &[Register::MaskEnable as u8, (value >> 8) as u8, value as u8],
+        )
+    }
+
+    #[inline(always)]
+    pub fn alert_limit(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::AlertLimit)
     }
 
     #[inline(always)]
