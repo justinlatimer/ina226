@@ -43,6 +43,7 @@ const ADDRESS_MIN: u8 = 0b1000000;
 const ADDRESS_MAX: u8 = 0b1001111;
 
 const SHUNT_VOLTAGE_LSB_UV: f64 = 2.5; // 2.5 μV.
+const BUS_VOLTAGE_LSB_MV: f64 = 1.25; // 1.25 mV.
 
 pub struct INA226<I2C> {
     i2c: I2C,
@@ -71,6 +72,17 @@ where
     pub fn shunt_voltage_microvolts(&mut self) -> Result<f64, E> {
         self.read_i16(Register::ShuntVoltage)
             .map(|raw| (raw as f64) * SHUNT_VOLTAGE_LSB_UV)
+    }
+
+    #[inline(always)]
+    pub fn bus_voltage_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::BusVoltage)
+    }
+
+    #[inline(always)]
+    pub fn bus_voltage_millivolts(&mut self) -> Result<f64, E> {
+        self.read_u16(Register::BusVoltage)
+            .map(|raw| (raw as f64) * BUS_VOLTAGE_LSB_MV)
     }
 
     fn read_i16(&mut self, register: Register) -> Result<i16, E> {
