@@ -17,7 +17,8 @@ enum Register {
     DieID = 0xFF,
 }
 
-enum AVG {
+#[derive(Copy, Clone)]
+pub enum AVG {
     _1 = 0b000,
     _4 = 0b001,
     _16 = 0b010,
@@ -28,7 +29,8 @@ enum AVG {
     _1024 = 0b111,
 }
 
-enum VBUSCT {
+#[derive(Copy, Clone)]
+pub enum VBUSCT {
     _140us = 0b000,
     _204us = 0b001,
     _332us = 0b010,
@@ -37,6 +39,47 @@ enum VBUSCT {
     _2116us = 0b101,
     _4156us = 0b110,
     _8244us = 0b111,
+}
+
+#[derive(Copy, Clone)]
+pub enum VSHCT {
+    _140us = 0b000,
+    _204us = 0b001,
+    _332us = 0b010,
+    _588us = 0b011,
+    _1100us = 0b100,
+    _2116us = 0b101,
+    _4156us = 0b110,
+    _8244us = 0b111,
+}
+
+#[derive(Copy, Clone)]
+pub enum MODE {
+    PowerDown = 0b000,
+    ShuntVoltageTriggered = 0b001,
+    BusVoltageTriggered = 0b010,
+    ShuntBusVoltageTriggered = 0b011,
+    PowerDown2 = 0b100,
+    ShuntVoltageContinuous = 0b101,
+    BusVoltageContinuous = 0b110,
+    ShuntBusVoltageContinuous = 0b111,
+}
+
+pub struct Config {
+    pub avg: AVG,
+    pub vbusct: VBUSCT,
+    pub vshct: VSHCT,
+    pub mode: MODE,
+}
+
+impl Config {
+    pub fn to_value(&self) -> u16 {
+        (1 << 14)
+            | ((self.avg as u16) << 9)
+            | ((self.vbusct as u16) << 6)
+            | ((self.vshct as u16) << 3)
+            | (self.mode as u16)
+    }
 }
 
 const ADDRESS_MIN: u8 = 0b1000000;
@@ -61,6 +104,19 @@ where
     #[inline(always)]
     pub fn configuration_raw(&mut self) -> Result<u16, E> {
         self.read_u16(Register::Configuration)
+    }
+
+    #[inline(always)]
+    pub fn set_configuration(&mut self, config: &Config) -> Result<(), E> {
+        let value = config.to_value();
+        self.i2c.write(
+            self.address,
+            &[
+                Register::Configuration as u8,
+                (value >> 8) as u8,
+                value as u8,
+            ],
+        )
     }
 
     #[inline(always)]
