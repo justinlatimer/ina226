@@ -1,5 +1,5 @@
-use ina226::INA226;
 use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+use ina226::INA226;
 
 #[test]
 fn read_configuration_raw_works() {
@@ -10,10 +10,12 @@ fn read_configuration_raw_works() {
     let i2c = I2cMock::new(&expectations);
 
     let mut ina226 = INA226::new(i2c, 0b1000000);
-    let config = ina226.configuration_raw().expect("configuration to be returned");
+    let config = ina226
+        .configuration_raw()
+        .expect("configuration to be returned");
 
     let mut i2c = ina226.destroy();
-    
+
     assert_eq!(config, 0b0100000100100111);
     i2c.done();
 }

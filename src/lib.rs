@@ -1,6 +1,6 @@
 #![no_std]
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use embedded_hal::blocking::i2c;
 
 #[repr(u8)]
@@ -69,7 +69,8 @@ where
 
     #[inline(always)]
     pub fn shunt_voltage_microvolts(&mut self) -> Result<f64, E> {
-        self.read_i16(Register::ShuntVoltage).map(|raw| (raw as f64) * SHUNT_VOLTAGE_LSB_UV)
+        self.read_i16(Register::ShuntVoltage)
+            .map(|raw| (raw as f64) * SHUNT_VOLTAGE_LSB_UV)
     }
 
     fn read_i16(&mut self, register: Register) -> Result<i16, E> {
@@ -90,4 +91,3 @@ where
         self.i2c
     }
 }
-
