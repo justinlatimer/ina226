@@ -85,6 +85,16 @@ where
             .map(|raw| (raw as f64) * BUS_VOLTAGE_LSB_MV)
     }
 
+    #[inline(always)]
+    pub fn manufacturer_id(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::ManufacturerID)
+    }
+
+    #[inline(always)]
+    pub fn die_id(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::DieID)
+    }
+
     fn read_i16(&mut self, register: Register) -> Result<i16, E> {
         let mut buf: [u8; 2] = [0x00; 2];
         self.i2c.write(self.address, &[register as u8])?;

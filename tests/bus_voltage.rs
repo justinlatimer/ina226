@@ -39,7 +39,6 @@ fn read_bus_voltage_microvolts_works() {
     i2c.done();
 }
 
-
 #[test]
 fn read_bus_voltage_microvolts_full_range_works() {
     let expectations = [
@@ -58,4 +57,3 @@ fn read_bus_voltage_microvolts_full_range_works() {
     assert_eq!(voltage, 40958.75);
     i2c.done();
 }
-
