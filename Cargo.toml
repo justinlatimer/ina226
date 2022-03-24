@@ -9,4 +9,5 @@ byteorder = { version = "1", default-features = false }
 embedded-hal = "0.2"
 
 [dev-dependencies]
+approx = "0.5"
 embedded-hal-mock = "0.8"

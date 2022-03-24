@@ -248,10 +248,28 @@ pub const DEFAULT_ADDRESS: u8 = 0b1000000;
 
 const SHUNT_VOLTAGE_LSB_UV: f64 = 2.5; // 2.5 μV.
 const BUS_VOLTAGE_LSB_MV: f64 = 1.25; // 1.25 mV.
+const SCALING_VALUE: f64 = 0.00512; // An internal fixed value used to ensure scaling is maintained properly.
+const POWER_LSB_FACTOR: f64 = 25.0; // The Power Register LSB is internally programmed to equal 25 times the programmed value of the Current_LSB.
+
+#[inline(always)]
+fn calculate_calibration_value(shunt_resistance: f64, current_lsb: f64) -> u16 {
+    (SCALING_VALUE / (current_lsb * shunt_resistance)) as u16
+}
+
+#[inline(always)]
+fn calculate_current_lsb(current_expected_max: f64) -> f64 {
+    current_expected_max / ((1 << 15) as f64)
+}
+
+struct Callibration {
+    current_lsb: f64,
+    power_lsb: f64,
+}
 
 pub struct INA226<I2C> {
     i2c: I2C,
     address: u8,
+    callibration: Option<Callibration>,
 }
 
 impl<I2C, E> INA226<I2C>
@@ -259,7 +277,11 @@ where
     I2C: i2c::Write<Error = E> + i2c::Read<Error = E>,
 {
     pub fn new(i2c: I2C, address: u8) -> INA226<I2C> {
-        INA226 { i2c, address }
+        INA226 {
+            i2c,
+            address,
+            callibration: None,
+        }
     }
 
     #[inline(always)]
@@ -314,8 +336,28 @@ where
     }
 
     #[inline(always)]
+    pub fn power_watts(&mut self) -> Result<Option<f64>, E> {
+        if let Some(Callibration { power_lsb, .. }) = self.callibration {
+            self.read_u16(Register::Power)
+                .map(|raw| Some((raw as f64) * power_lsb))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[inline(always)]
     pub fn current_raw(&mut self) -> Result<i16, E> {
         self.read_i16(Register::Current)
+    }
+
+    #[inline(always)]
+    pub fn current_amps(&mut self) -> Result<Option<f64>, E> {
+        if let Some(Callibration { current_lsb, .. }) = self.callibration {
+            self.read_i16(Register::Current)
+                .map(|raw| Some((raw as f64) * current_lsb))
+        } else {
+            Ok(None)
+        }
     }
 
     #[inline(always)]
@@ -324,7 +366,31 @@ where
     }
 
     #[inline(always)]
-    pub fn set_callibration(&mut self, value: u16) -> Result<(), E> {
+    pub fn set_callibration_raw(&mut self, value: u16) -> Result<(), E> {
+        self.callibration = None;
+        self.i2c.write(
+            self.address,
+            &[
+                Register::Callibration as u8,
+                (value >> 8) as u8,
+                value as u8,
+            ],
+        )
+    }
+
+    #[inline(always)]
+    pub fn callibrate(
+        &mut self,
+        shunt_resistance: f64,
+        current_expected_max: f64,
+    ) -> Result<(), E> {
+        let current_lsb = calculate_current_lsb(current_expected_max);
+        let power_lsb = current_lsb * POWER_LSB_FACTOR;
+        self.callibration = Some(Callibration {
+            current_lsb,
+            power_lsb,
+        });
+        let value = calculate_calibration_value(shunt_resistance, current_lsb);
         self.i2c.write(
             self.address,
             &[
@@ -381,5 +447,24 @@ where
 
     pub fn destroy(self) -> I2C {
         self.i2c
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{calculate_calibration_value, calculate_current_lsb};
+
+    #[test]
+    fn calculate_current_lsb_works() {
+        let result = calculate_current_lsb(15.0);
+        assert_eq!(result, 0.000457763671875);
+    }
+
+    #[test]
+    fn calculate_calibration_value_works() {
+        let shunt_resistance: f64 = 0.002; // 2mOhm
+        let current_lsb: f64 = 0.001; // 1 mA
+        let result = calculate_calibration_value(shunt_resistance, current_lsb);
+        assert_eq!(result, 2560);
     }
 }
