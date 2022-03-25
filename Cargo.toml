@@ -2,6 +2,12 @@
 name = "ina226"
 version = "0.1.0"
 edition = "2021"
+authors = [
+    "Justin Latimer <justinlatimer@gmail.com>",
+]
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/justinlatimer/ina226"
 
 [dependencies]
 bitflags = "1.3"
