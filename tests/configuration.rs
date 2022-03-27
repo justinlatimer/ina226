@@ -1,32 +1,5 @@
 use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
-use ina226::{Config, AVG, INA226, MODE, VBUSCT, VSHCT};
-
-#[test]
-fn configuration_to_value_works() {
-    let config = Config {
-        avg: AVG::_1,
-        vbusct: VBUSCT::_1100us,
-        vshct: VSHCT::_1100us,
-        mode: MODE::ShuntBusVoltageContinuous,
-    };
-
-    assert_eq!(config.to_value(), 0b0100000100100111);
-}
-
-#[test]
-fn configuration_from_value_works() {
-    let config = Config::from_value(0b0100000100100111).expect("config to be parsed");
-
-    assert_eq!(
-        config,
-        Config {
-            avg: AVG::_1,
-            vbusct: VBUSCT::_1100us,
-            vshct: VSHCT::_1100us,
-            mode: MODE::ShuntBusVoltageContinuous,
-        }
-    );
-}
+use ina226::INA226;
 
 #[test]
 fn read_configuration_raw_works() {
