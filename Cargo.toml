@@ -5,6 +5,7 @@ edition = "2021"
 authors = [
     "Justin Latimer <justinlatimer@gmail.com>",
 ]
+description = "Driver for INA226 I2C voltage/current/power monitor"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/justinlatimer/ina226"
