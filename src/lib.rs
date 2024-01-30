@@ -529,18 +529,12 @@ where
         self.read_u16(Register::AlertLimit)
     }
 
-
     /// Set the Alert Limit register.
     #[inline(always)]
     pub fn set_alert_limit(&mut self, value: u16) -> Result<(), E> {
-
         self.i2c.write(
             self.address,
-            &[
-                Register::AlertLimit as u8,
-                (value >> 8) as u8,
-                value as u8,
-            ],
+            &[Register::AlertLimit as u8, (value >> 8) as u8, value as u8],
         )
     }
 
