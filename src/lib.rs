@@ -39,7 +39,7 @@
 
 use bitflags::bitflags;
 use byteorder::{BigEndian, ByteOrder};
-use embedded_hal::blocking::i2c;
+use embedded_hal::i2c;
 
 #[repr(u8)]
 enum Register {
@@ -359,7 +359,7 @@ pub struct INA226<I2C> {
 
 impl<I2C, E> INA226<I2C>
 where
-    I2C: i2c::Write<Error = E> + i2c::Read<Error = E>,
+    I2C: i2c::I2c<Error = E>,
 {
     /// Create a new instance of an INA226 device.
     pub fn new(i2c: I2C, address: u8) -> INA226<I2C> {

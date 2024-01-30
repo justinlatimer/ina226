@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use embedded_hal_mock::eh0::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 use ina226::INA226;
 
 #[test]
