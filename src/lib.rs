@@ -244,6 +244,7 @@ bitflags! {
     /// Alert pin as well as how that pin functions. If multiple functions are
     /// enabled, the highest significant bit position Alert Function (D15-D11) takes
     /// priority and responds to the Alert Limit Register.
+    #[derive(Debug, PartialEq)]
     pub struct MaskEnableFlags: u16 {
         /// Shunt Voltage Over-Voltage
         /// Bit 15
