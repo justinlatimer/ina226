@@ -386,14 +386,7 @@ where
     #[inline(always)]
     pub fn set_configuration(&mut self, config: &Config) -> Result<(), E> {
         let value = config.to_value();
-        self.i2c.write(
-            self.address,
-            &[
-                Register::Configuration as u8,
-                (value >> 8) as u8,
-                value as u8,
-            ],
-        )
+        self.write_u16(Register::Configuration, value)
     }
 
     /// Gets the raw shunt voltage measurement.
@@ -472,14 +465,7 @@ where
     #[inline(always)]
     pub fn set_callibration_raw(&mut self, value: u16) -> Result<(), E> {
         self.callibration = None;
-        self.i2c.write(
-            self.address,
-            &[
-                Register::Callibration as u8,
-                (value >> 8) as u8,
-                value as u8,
-            ],
-        )
+        self.write_u16(Register::Callibration, value)
     }
 
     /// Calibrate the sensitvity of the current and power values.
@@ -496,14 +482,7 @@ where
             power_lsb,
         });
         let value = calculate_calibration_value(shunt_resistance, current_lsb);
-        self.i2c.write(
-            self.address,
-            &[
-                Register::Callibration as u8,
-                (value >> 8) as u8,
-                value as u8,
-            ],
-        )
+        self.write_u16(Register::Callibration, value)
     }
 
     /// Get the Alert configuration and Conversion Ready flag.
@@ -517,10 +496,7 @@ where
     #[inline(always)]
     pub fn set_mask_enable(&mut self, flags: MaskEnableFlags) -> Result<(), E> {
         let value = flags.bits();
-        self.i2c.write(
-            self.address,
-            &[Register::MaskEnable as u8, (value >> 8) as u8, value as u8],
-        )
+        self.write_u16(Register::MaskEnable, value)
     }
 
     /// Get the limit value to compare to the selected Alert function.
@@ -532,10 +508,7 @@ where
     /// Set the Alert Limit register.
     #[inline(always)]
     pub fn set_alert_limit(&mut self, value: u16) -> Result<(), E> {
-        self.i2c.write(
-            self.address,
-            &[Register::AlertLimit as u8, (value >> 8) as u8, value as u8],
-        )
+        self.write_u16(Register::AlertLimit, value)
     }
 
     /// Get the unique manufacturer identification number
@@ -550,6 +523,7 @@ where
         self.read_u16(Register::DieID)
     }
 
+    #[inline(always)]
     fn read_i16(&mut self, register: Register) -> Result<i16, E> {
         let mut buf: [u8; 2] = [0x00; 2];
         self.i2c.write(self.address, &[register as u8])?;
@@ -557,11 +531,20 @@ where
         Ok(BigEndian::read_i16(&buf))
     }
 
+    #[inline(always)]
     fn read_u16(&mut self, register: Register) -> Result<u16, E> {
         let mut buf: [u8; 2] = [0x00; 2];
         self.i2c.write(self.address, &[register as u8])?;
         self.i2c.read(self.address, &mut buf)?;
         Ok(BigEndian::read_u16(&buf))
+    }
+
+    #[inline(always)]
+    fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
+        self.i2c.write(
+            self.address,
+            &[register as u8, (value >> 8) as u8, value as u8],
+        )
     }
 
     /// Destroy the INA226 instance and return the I2C.
