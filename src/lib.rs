@@ -513,7 +513,7 @@ where
             .map(MaskEnableFlags::from_bits_truncate)
     }
 
-    /// Get the Alert configuration and Conversion Ready flags.
+    /// Set the Alert configuration and Conversion Ready flags.
     #[inline(always)]
     pub fn set_mask_enable(&mut self, flags: MaskEnableFlags) -> Result<(), E> {
         let value = flags.bits();
@@ -527,6 +527,21 @@ where
     #[inline(always)]
     pub fn alert_limit(&mut self) -> Result<u16, E> {
         self.read_u16(Register::AlertLimit)
+    }
+
+
+    /// Set the Alert Limit register.
+    #[inline(always)]
+    pub fn set_alert_limit(&mut self, value: u16) -> Result<(), E> {
+
+        self.i2c.write(
+            self.address,
+            &[
+                Register::AlertLimit as u8,
+                (value >> 8) as u8,
+                value as u8,
+            ],
+        )
     }
 
     /// Get the unique manufacturer identification number

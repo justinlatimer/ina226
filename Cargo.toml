@@ -1,6 +1,6 @@
 [package]
 name = "ina226"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = [
     "Justin Latimer <justinlatimer@gmail.com>",
