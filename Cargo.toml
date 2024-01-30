@@ -17,4 +17,4 @@ embedded-hal = "0.2"
 
 [dev-dependencies]
 approx = "0.5"
-embedded-hal-mock = "0.8"
+embedded-hal-mock = "0.10"
