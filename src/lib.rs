@@ -39,7 +39,10 @@
 
 use bitflags::bitflags;
 use byteorder::{BigEndian, ByteOrder};
-use embedded_hal::i2c;
+#[cfg(not(feature = "async"))]
+use embedded_hal::i2c::I2c;
+#[cfg(feature = "async")]
+use embedded_hal_async::i2c::I2c;
 
 #[repr(u8)]
 enum Register {
@@ -357,9 +360,13 @@ pub struct INA226<I2C> {
     callibration: Option<Callibration>,
 }
 
+#[maybe_async_cfg::maybe(
+    sync(cfg(not(feature = "async")), self = "INA226",),
+    async(feature = "async", keep_self)
+)]
 impl<I2C, E> INA226<I2C>
 where
-    I2C: i2c::I2c<Error = E>,
+    I2C: I2c<Error = E>,
 {
     /// Create a new instance of an INA226 device.
     pub fn new(i2c: I2C, address: u8) -> INA226<I2C> {
@@ -372,63 +379,67 @@ where
 
     /// Gets the raw configuration value.
     #[inline(always)]
-    pub fn configuration_raw(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::Configuration)
+    pub async fn configuration_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Configuration).await
     }
 
     /// Gets the configuration.
     #[inline(always)]
-    pub fn configuration(&mut self) -> Result<Option<Config>, E> {
+    pub async fn configuration(&mut self) -> Result<Option<Config>, E> {
         self.read_u16(Register::Configuration)
+            .await
             .map(Config::from_value)
     }
 
     /// Set the configuration of the device.
     #[inline(always)]
-    pub fn set_configuration(&mut self, config: &Config) -> Result<(), E> {
+    pub async fn set_configuration(&mut self, config: &Config) -> Result<(), E> {
         let value = config.to_value();
-        self.write_u16(Register::Configuration, value)
+        self.write_u16(Register::Configuration, value).await
     }
 
     /// Gets the raw shunt voltage measurement.
     #[inline(always)]
-    pub fn shunt_voltage_raw(&mut self) -> Result<i16, E> {
-        self.read_i16(Register::ShuntVoltage)
+    pub async fn shunt_voltage_raw(&mut self) -> Result<i16, E> {
+        self.read_i16(Register::ShuntVoltage).await
     }
 
     /// Gets the shunt voltage in microvolts.
     #[inline(always)]
-    pub fn shunt_voltage_microvolts(&mut self) -> Result<f64, E> {
+    pub async fn shunt_voltage_microvolts(&mut self) -> Result<f64, E> {
         self.read_i16(Register::ShuntVoltage)
+            .await
             .map(|raw| (raw as f64) * SHUNT_VOLTAGE_LSB_UV)
     }
 
     /// Gets the raw bus voltage measurement.
     #[inline(always)]
-    pub fn bus_voltage_raw(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::BusVoltage)
+    pub async fn bus_voltage_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::BusVoltage).await
     }
 
     /// Gets the bus voltage in millivolts.
     #[inline(always)]
-    pub fn bus_voltage_millivolts(&mut self) -> Result<f64, E> {
+    pub async fn bus_voltage_millivolts(&mut self) -> Result<f64, E> {
         self.read_u16(Register::BusVoltage)
+            .await
             .map(|raw| (raw as f64) * BUS_VOLTAGE_LSB_MV)
     }
 
     /// Gets the raw calculated power being delivered to the load.
     /// Returns zero if callibration has not been performed.
     #[inline(always)]
-    pub fn power_raw(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::Power)
+    pub async fn power_raw(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Power).await
     }
 
     /// Gets the calculated power (in Watts) being delivered to the load.
     /// Requires callibration.
     #[inline(always)]
-    pub fn power_watts(&mut self) -> Result<Option<f64>, E> {
+    pub async fn power_watts(&mut self) -> Result<Option<f64>, E> {
         if let Some(Callibration { power_lsb, .. }) = self.callibration {
             self.read_u16(Register::Power)
+                .await
                 .map(|raw| Some((raw as f64) * power_lsb))
         } else {
             Ok(None)
@@ -438,16 +449,17 @@ where
     /// Gets the calculated current flowing through the shunt resistor.
     /// Returns zero if callibration has not been performed.
     #[inline(always)]
-    pub fn current_raw(&mut self) -> Result<i16, E> {
-        self.read_i16(Register::Current)
+    pub async fn current_raw(&mut self) -> Result<i16, E> {
+        self.read_i16(Register::Current).await
     }
 
     /// Gets the calculated current (in Amps) flowing through the shunt resistor.
     /// Requires callibration.
     #[inline(always)]
-    pub fn current_amps(&mut self) -> Result<Option<f64>, E> {
+    pub async fn current_amps(&mut self) -> Result<Option<f64>, E> {
         if let Some(Callibration { current_lsb, .. }) = self.callibration {
             self.read_i16(Register::Current)
+                .await
                 .map(|raw| Some((raw as f64) * current_lsb))
         } else {
             Ok(None)
@@ -457,21 +469,21 @@ where
     /// Gets the callibration register, which controls full-scale
     /// range of current and power measurements.
     #[inline(always)]
-    pub fn callibration(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::Callibration)
+    pub async fn callibration(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::Callibration).await
     }
 
     /// Set the callibration register directly.
     /// NB: after calling this, only `_raw` methods can be used.
     #[inline(always)]
-    pub fn set_callibration_raw(&mut self, value: u16) -> Result<(), E> {
+    pub async fn set_callibration_raw(&mut self, value: u16) -> Result<(), E> {
         self.callibration = None;
-        self.write_u16(Register::Callibration, value)
+        self.write_u16(Register::Callibration, value).await
     }
 
     /// Calibrate the sensitvity of the current and power values.
     #[inline(always)]
-    pub fn callibrate(
+    pub async fn callibrate(
         &mut self,
         shunt_resistance: f64,
         current_expected_max: f64,
@@ -483,69 +495,72 @@ where
             power_lsb,
         });
         let value = calculate_calibration_value(shunt_resistance, current_lsb);
-        self.write_u16(Register::Callibration, value)
+        self.write_u16(Register::Callibration, value).await
     }
 
     /// Get the Alert configuration and Conversion Ready flag.
     #[inline(always)]
-    pub fn mask_enable(&mut self) -> Result<MaskEnableFlags, E> {
+    pub async fn mask_enable(&mut self) -> Result<MaskEnableFlags, E> {
         self.read_u16(Register::MaskEnable)
+            .await
             .map(MaskEnableFlags::from_bits_truncate)
     }
 
     /// Set the Alert configuration and Conversion Ready flags.
     #[inline(always)]
-    pub fn set_mask_enable(&mut self, flags: MaskEnableFlags) -> Result<(), E> {
+    pub async fn set_mask_enable(&mut self, flags: MaskEnableFlags) -> Result<(), E> {
         let value = flags.bits();
-        self.write_u16(Register::MaskEnable, value)
+        self.write_u16(Register::MaskEnable, value).await
     }
 
     /// Get the limit value to compare to the selected Alert function.
     #[inline(always)]
-    pub fn alert_limit(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::AlertLimit)
+    pub async fn alert_limit(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::AlertLimit).await
     }
 
     /// Set the Alert Limit register.
     #[inline(always)]
-    pub fn set_alert_limit(&mut self, value: u16) -> Result<(), E> {
-        self.write_u16(Register::AlertLimit, value)
+    pub async fn set_alert_limit(&mut self, value: u16) -> Result<(), E> {
+        self.write_u16(Register::AlertLimit, value).await
     }
 
     /// Get the unique manufacturer identification number
     #[inline(always)]
-    pub fn manufacturer_id(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::ManufacturerID)
+    pub async fn manufacturer_id(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::ManufacturerID).await
     }
 
     /// Get the unique die identification number.
     #[inline(always)]
-    pub fn die_id(&mut self) -> Result<u16, E> {
-        self.read_u16(Register::DieID)
+    pub async fn die_id(&mut self) -> Result<u16, E> {
+        self.read_u16(Register::DieID).await
     }
 
     #[inline(always)]
-    fn read_i16(&mut self, register: Register) -> Result<i16, E> {
+    async fn read_i16(&mut self, register: Register) -> Result<i16, E> {
         let mut buf: [u8; 2] = [0x00; 2];
-        self.i2c.write(self.address, &[register as u8])?;
-        self.i2c.read(self.address, &mut buf)?;
+        self.i2c.write(self.address, &[register as u8]).await?;
+        self.i2c.read(self.address, &mut buf).await?;
         Ok(BigEndian::read_i16(&buf))
     }
 
     #[inline(always)]
-    fn read_u16(&mut self, register: Register) -> Result<u16, E> {
+    async fn read_u16(&mut self, register: Register) -> Result<u16, E> {
         let mut buf: [u8; 2] = [0x00; 2];
-        self.i2c.write(self.address, &[register as u8])?;
-        self.i2c.read(self.address, &mut buf)?;
+        self.i2c.write(self.address, &[register as u8]).await?;
+        self.i2c.read(self.address, &mut buf).await?;
         Ok(BigEndian::read_u16(&buf))
     }
 
     #[inline(always)]
-    fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
-        self.i2c.write(
-            self.address,
-            &[register as u8, (value >> 8) as u8, value as u8],
-        )
+    async fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
+        self.i2c
+            .write(
+                self.address,
+                &[register as u8, (value >> 8) as u8, value as u8],
+            )
+            .await
     }
 
     /// Destroy the INA226 instance and return the I2C.
